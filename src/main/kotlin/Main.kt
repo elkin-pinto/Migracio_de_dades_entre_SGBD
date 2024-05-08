@@ -4,11 +4,10 @@ import org.postgresql.util.PSQLException
 import java.sql.Connection
 import java.sql.DriverManager
 import java.sql.ResultSet
+import kotlin.reflect.full.memberProperties
 
 
-data class Alumnos (val dni:String,val apenom:String,val direc:String,val pobla:String,val telef:String) {
-    constructor(): this("","","","","")
-}
+data class Alumnos (val dni:String,val apenom:String,val direc:String,val pobla:String,val telef:String)
 data class Assignaturas(val cod:Int, val nombre:String)
 data class Notas(val dni:String, val cod:Int, val nota:Int)
 
@@ -18,10 +17,10 @@ fun main() {
         val pepe = DatabaseSQLController()
         pepe.connect(jdbcUrl,"sjo","")
         pepe.getTabla("alumnos")
-        do {
+        while(pepe.hasNext()) {
             val alumn = pepe.next<Alumnos>()
             println(alumn!!.dni)
-        } while(pepe.hasNext())
+        }
     } catch (e: PSQLException) {
         println(e.message)
     }
@@ -49,18 +48,19 @@ class DatabaseSQLController {
     inline fun <reified T> next(): T? {
         if (result.next()) {
             val parametres = mutableListOf<Any>()
-            for (i in 0 until T::class.typeParameters.size) {
-                val parametre:Any = when(T::class.typeParameters[i].name) {
-                    "Int" -> result.getInt(i)
-                    "String" -> result.getString(i)
-                    "Float" -> result.getFloat(i)
-                    "Boolean" -> result.getBoolean(i)
-                    else -> ""
+            val properties = T::class.memberProperties
+            for (property in properties) {
+                val columnName = property.name
+                val parametre: Any? = when (property.returnType.toString()) {
+                    "kotlin.String" -> result.getString(columnName)
+                    "kotlin.Int" -> result.getInt(columnName)
+                    "kotlin.Float" -> result.getFloat(columnName)
+                    "kotlin.Boolean" -> result.getBoolean(columnName)
+                    else -> "" // Puedes manejar otros tipos si es necesario
                 }
-                parametres.add(parametre)
+                parametres.add(parametre ?: "")
             }
-
-            return T::class.constructors.first().call(parametres.toTypedArray())
+            return T::class.constructors.first().call(*parametres.toTypedArray())
         }
         return null
     }
@@ -70,3 +70,4 @@ class DatabaseSQLController {
         this.connection.close()
     }
 }
+
