@@ -45,7 +45,7 @@ class DatabaseSQLController {
         return this.result.next()
     }
 
-    inline fun <reified T> next(): T? {
+    inline fun <reified T:Any> next(): T? {
         if (result.next()) {
             val parametres = mutableListOf<Any>()
             val properties = T::class.memberProperties
