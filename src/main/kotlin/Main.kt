@@ -20,6 +20,10 @@ fun main() {
         while(pepe.hasNext()) {
             val alumn = pepe.next<Alumnos>()
             println(alumn!!.dni)
+            println(alumn.apenom)
+            println(alumn.direc)
+            println(alumn.pobla)
+            println(alumn.telef)
         }
     } catch (e: PSQLException) {
         println(e.message)
@@ -49,13 +53,12 @@ class DatabaseSQLController {
         if (result.next()) {
             val parametres = mutableListOf<Any>()
             val properties = T::class.memberProperties
-            for (property in properties) {
-                val columnName = property.name
+            for ((index, property) in properties.withIndex()) {
                 val parametre: Any? = when (property.returnType.toString()) {
-                    "kotlin.String" -> result.getString(columnName)
-                    "kotlin.Int" -> result.getInt(columnName)
-                    "kotlin.Float" -> result.getFloat(columnName)
-                    "kotlin.Boolean" -> result.getBoolean(columnName)
+                    "kotlin.String" -> result.getString(index+1)
+                    "kotlin.Int" -> result.getInt(index+1)
+                    "kotlin.Float" -> result.getFloat(index+1)
+                    "kotlin.Boolean" -> result.getBoolean(index+1)
                     else -> "" // Puedes manejar otros tipos si es necesario
                 }
                 parametres.add(parametre ?: "")
