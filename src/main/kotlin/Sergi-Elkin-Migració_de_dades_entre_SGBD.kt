@@ -52,6 +52,35 @@ fun main() {
             }
         }
 
+        postgres.llegeix("notas")
+
+        // Fem una iteració mentres que tingui dades la lectura
+        while (postgres.hiha()) {
+            val nota = postgres.recupera<Notas>() // Agafem un alumne
+            if (nota != null) { // Si la nota no es null imprimim les dades i el pujem a mongo
+                println(nota.dni)
+                println(nota.dni)
+                println(nota.cod)
+                mongo.insereix("notas", nota)
+            } else {
+                println("La nota es null, no s'ha trobat cap")
+            }
+        }
+
+        postgres.llegeix("asignaturas")
+
+        // Fem una iteració mentres que tingui dades la lectura
+        while (postgres.hiha()) {
+            val assignatura = postgres.recupera<Assignaturas>() // Agafem un alumne
+            if (assignatura != null) { // Si la assignatura no es null imprimim les dades i el pujem a mongo
+                println(assignatura.nombre)
+                println(assignatura.cod)
+                mongo.insereix("asignaturas", assignatura)
+            } else {
+                println("La nota es null, no s'ha trobat cap")
+            }
+        }
+
     } catch (e: PSQLException) {
         println(e.message)
     } finally {
