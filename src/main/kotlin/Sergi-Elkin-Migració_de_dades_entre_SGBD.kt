@@ -24,6 +24,7 @@ fun main() {
     val postgresHost = "localhost:5432"
     val mongoHost = "sergioherrador.bwwhoy4.mongodb.net/?retryWrites=true&w=majority&appName=SergioHerrador"
 
+    // Tenemos las tablas que queremos migrar
     val tablas : MutableList<String> = mutableListOf("alumnos","notas","asignaturas")
 
     var postgres: Postgres? = null
@@ -40,8 +41,9 @@ fun main() {
         // Ens conectem a mongo
         mongo.connexioBD(mongoHost, "elkin", "pepoClown123", "itb")
 
-        for (tabla in tablas) {
-            postgres.llegeix(tabla) // Leemos la tabla que toque
+        for (tabla in tablas) { // por cada tabla que queremos migrar hacemos ::
+            postgres.llegeix(tabla) // Leemos la tabla que toque en la iteración
+
             while (postgres.hiha()) {
                 when (tabla) {
                     "alumnos" -> {
