@@ -30,7 +30,7 @@ fun main() {
         postgres = Postgres()
         mongo = Mongo()
 
-        // ens conectem a postgres i comencem a llegir
+        // Ens conectem a postgres i comencem a llegir
         postgres.connexioBD(jdbcUrl, "sjo", "", "alumnos")
         postgres.llegeix("alumnos")
 
