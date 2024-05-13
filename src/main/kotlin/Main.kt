@@ -127,7 +127,7 @@ class Mongo {
 
         try {
             // Connectar-se a servidor de mongoDB
-            var mongoClientFun = mongoClient
+            val mongoClientFun = mongoClient
             val connectionString = host
 
             // Crear connexió
