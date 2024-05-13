@@ -59,7 +59,7 @@ fun main() {
             val nota = postgres.recupera<Notas>() // Agafem un alumne
             if (nota != null) { // Si la nota no es null imprimim les dades i el pujem a mongo
                 println(nota.dni)
-                println(nota.dni)
+                println(nota.nota)
                 println(nota.cod)
                 mongo.insereix("notas", nota)
             } else {
