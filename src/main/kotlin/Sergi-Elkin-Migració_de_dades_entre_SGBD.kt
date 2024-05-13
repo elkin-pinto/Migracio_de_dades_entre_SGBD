@@ -21,8 +21,11 @@ data class Assignaturas(val cod: Int, val nombre: String)
 data class Notas(val dni: String, val cod: Int, val nota: Int)
 
 fun main() {
-    val jdbcUrl = "jdbc:postgresql://localhost:5432/school"
-    val mongoUrl = "mongodb+srv://elkin:pepoClown123@sergioherrador.bwwhoy4.mongodb.net/?retryWrites=true&w=majority&appName=SergioHerrador"
+    val postgresHost = "localhost:5432"
+    val mongoHost = "sergioherrador.bwwhoy4.mongodb.net/?retryWrites=true&w=majority&appName=SergioHerrador"
+
+    val tablas : MutableList<String> = mutableListOf("alumnos","notas","asignaturas")
+
     var postgres: Postgres? = null
     var mongo: Mongo? = null
     try {
@@ -31,53 +34,53 @@ fun main() {
         mongo = Mongo()
 
         // Ens conectem a postgres i comencem a llegir
-        postgres.connexioBD(jdbcUrl, "sjo", "", "alumnos")
+        postgres.connexioBD(postgresHost, "sjo", "", "school")
         postgres.llegeix("alumnos")
 
         // Ens conectem a mongo
-        mongo.connexioBD(mongoUrl, "elkin", "pepoClown123", "itb")
+        mongo.connexioBD(mongoHost, "elkin", "pepoClown123", "itb")
 
-        // Fem una iteració mentres que tingui dades la lectura
-        while (postgres.hiha()) {
-            val alumn = postgres.recupera<Alumnos>() // Agafem un alumne
-            if (alumn != null) { // Si l'alumne no es null imprimim les dades i el pujem a mongo
-                println(alumn.dni)
-                println(alumn.apenom)
-                println(alumn.direc)
-                println(alumn.pobla)
-                println(alumn.telef)
-                mongo.insereix("alumnos", alumn)
-            } else {
-                println("L'alumne es null, no s'ha trobat cap")
-            }
-        }
+        for (tabla in tablas) {
+            postgres.llegeix(tabla) // Leemos la tabla que toque
+            while (postgres.hiha()) {
+                when (tabla) {
+                    "alumnos" -> {
+                        val alumn = postgres.recupera<Alumnos>() // Agafem un alumne
+                        if (alumn != null) { // Si l'alumne no es null imprimim les dades i el pujem a mongo
+                            println(alumn.dni)
+                            println(alumn.apenom)
+                            println(alumn.direc)
+                            println(alumn.pobla)
+                            println(alumn.telef)
+                            mongo.insereix("alumnos", alumn)
+                        } else {
+                            println("L'alumne es null, no s'ha trobat cap")
+                        }
+                    }
 
-        postgres.llegeix("notas")
+                    "notas" -> {
+                        val nota = postgres.recupera<Notas>() // Agafem un alumne
+                        if (nota != null) { // Si la nota no es null imprimim les dades i el pujem a mongo
+                            println(nota.dni)
+                            println(nota.nota)
+                            println(nota.cod)
+                            mongo.insereix("notas", nota)
+                        } else {
+                            println("La nota es null, no s'ha trobat cap")
+                        }
+                    }
 
-        // Fem una iteració mentres que tingui dades la lectura
-        while (postgres.hiha()) {
-            val nota = postgres.recupera<Notas>() // Agafem un alumne
-            if (nota != null) { // Si la nota no es null imprimim les dades i el pujem a mongo
-                println(nota.dni)
-                println(nota.nota)
-                println(nota.cod)
-                mongo.insereix("notas", nota)
-            } else {
-                println("La nota es null, no s'ha trobat cap")
-            }
-        }
-
-        postgres.llegeix("asignaturas")
-
-        // Fem una iteració mentres que tingui dades la lectura
-        while (postgres.hiha()) {
-            val assignatura = postgres.recupera<Assignaturas>() // Agafem un alumne
-            if (assignatura != null) { // Si la assignatura no es null imprimim les dades i el pujem a mongo
-                println(assignatura.nombre)
-                println(assignatura.cod)
-                mongo.insereix("asignaturas", assignatura)
-            } else {
-                println("La nota es null, no s'ha trobat cap")
+                    "asignatura" -> {
+                        val assignatura = postgres.recupera<Assignaturas>() // Agafem un alumne
+                        if (assignatura != null) { // Si la assignatura no es null imprimim les dades i el pujem a mongo
+                            println(assignatura.nombre)
+                            println(assignatura.cod)
+                            mongo.insereix("asignaturas", assignatura)
+                        } else {
+                            println("La nota es null, no s'ha trobat cap")
+                        }
+                    }
+                }
             }
         }
 
@@ -95,7 +98,8 @@ class Postgres {
     lateinit var result: ResultSet
 
     // Estableix la connexió contra la BD del servidor  PostgreSQL.
-    fun connexioBD(jdbcUrl: String, user: String, password: String, bd: String) {
+    fun connexioBD(host: String, user: String, password: String, bd: String) {
+        val jdbcUrl = "jdbc:postgresql://$host/$bd"
         this.connection = DriverManager.getConnection(jdbcUrl, user, password)
         llegeix(bd)
     }
@@ -159,10 +163,10 @@ class Mongo {
         try {
             // Connectar-se a servidor de mongoDB
             val mongoClientFun = mongoClient
-            val connectionString = host
 
+            val mongoUrl = "mongodb+srv://$usuari:$password@$host"
             // Crear connexió
-            mongoClient = MongoClients.create(connectionString)
+            mongoClient = MongoClients.create(mongoUrl)
 
             // Agafar la base de dades desitjada
             baseDades = mongoClientFun?.getDatabase(bd)
