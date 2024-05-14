@@ -36,54 +36,62 @@ fun main() {
 
         // Ens conectem a postgres i comencem a llegir
         postgres.connexioBD(postgresHost, "sjo", "", "school")
-        postgres.llegeix("alumnos")
+        for (tabla in tablas) {
+            postgres.llegeix(tabla)
+        }
 
         // Ens conectem a mongo
         mongo.connexioBD(mongoHost, "elkin", "pepoClown123", "itb")
 
-        for (tabla in tablas) { // por cada tabla que queremos migrar hacemos ::
-            postgres.llegeix(tabla) // Leemos la tabla que toque en la iteración
 
-            while (postgres.hiha()) {
+
+        while (true) {
+            for (tabla in tablas) {
+                postgres.llegeix(tabla)
                 when (tabla) {
                     "alumnos" -> {
-                        val alumn = postgres.recupera<Alumnos>() // Agafem un alumne
+                        val alumn = postgres.recupera<Alumnos>(tabla) // Agafem un alumne
                         if (alumn != null) { // Si l'alumne no es null imprimim les dades i el pujem a mongo
                             println(alumn.dni)
                             println(alumn.apenom)
                             println(alumn.direc)
                             println(alumn.pobla)
                             println(alumn.telef)
-                            mongo.insereix("alumnos", alumn)
+                            mongo.insereix(tabla, alumn)
                         } else {
                             println("L'alumne es null, no s'ha trobat cap")
                         }
                     }
 
                     "notas" -> {
-                        val nota = postgres.recupera<Notas>() // Agafem un alumne
+                        val nota = postgres.recupera<Notas>(tabla) // Agafem un alumne
                         if (nota != null) { // Si la nota no es null imprimim les dades i el pujem a mongo
                             println(nota.dni)
                             println(nota.nota)
                             println(nota.cod)
-                            mongo.insereix("notas", nota)
+                            mongo.insereix(tabla, nota)
                         } else {
                             println("La nota es null, no s'ha trobat cap")
                         }
                     }
 
                     "asignatura" -> {
-                        val assignatura = postgres.recupera<Assignaturas>() // Agafem un alumne
+                        val assignatura = postgres.recupera<Assignaturas>(tabla) // Agafem un alumne
                         if (assignatura != null) { // Si la assignatura no es null imprimim les dades i el pujem a mongo
                             println(assignatura.nombre)
                             println(assignatura.cod)
-                            mongo.insereix("asignaturas", assignatura)
+                            mongo.insereix(tabla, assignatura)
                         } else {
                             println("La nota es null, no s'ha trobat cap")
                         }
                     }
                 }
             }
+            var continuar = false
+            for (tabla in tablas) {
+                if (postgres.hiha(tabla) == true)  continuar = true
+            }
+            if (!continuar) break
         }
 
     } catch (e: PSQLException) {
@@ -97,7 +105,7 @@ fun main() {
 
 class Postgres {
     private lateinit var connection: Connection
-    lateinit var result: ResultSet
+    var result = mutableMapOf<String,ResultSet>()
 
     // Estableix la connexió contra la BD del servidor  PostgreSQL.
     fun connexioBD(host: String, user: String, password: String, bd: String) {
@@ -109,26 +117,26 @@ class Postgres {
     // inicia l’operació de lectura de la taula rebuda com a paràmetre.
     fun llegeix(nomTaula: String) {
         val statement = connection.createStatement()
-        this.result = statement.executeQuery("SELECT * FROM $nomTaula")
+        this.result[nomTaula] = statement.executeQuery("SELECT * FROM $nomTaula")
     }
 
     // Indica si hi ha dades disponibles per llegir de la taula rebuda com a paràmetre.
-    fun hiha(): Boolean {
-        return this.result.next()
+    fun hiha(nomTaula: String): Boolean? {
+        return this.result[nomTaula]?.next()
     }
 
     // Retorna un objecte amb les dades llegides de la taula rebuda com a paràmetre.
-    inline fun <reified T : Any> recupera(): T? {
-        if (result.next()) { // Si el resultat te seguent el agafem
+    inline fun <reified T : Any> recupera(nomTaula: String): T? {
+        if (result[nomTaula]?.next() == true) { // Si el resultat te seguent el agafem
             val parametres = mutableListOf<Any>()
             val properties = T::class.memberProperties
             for ((index, property) in properties.withIndex()) {
                 // Agafem els parametres i el index, per cada parametre verifiquem que tipus es i el agafem
                 val parametre: Any? = when (property.returnType.toString()) {
-                    "kotlin.String" -> result.getString(index + 1)
-                    "kotlin.Int" -> result.getInt(index + 1)
-                    "kotlin.Float" -> result.getFloat(index + 1)
-                    "kotlin.Boolean" -> result.getBoolean(index + 1)
+                    "kotlin.String" -> result[nomTaula]!!.getString(index + 1)
+                    "kotlin.Int" -> result[nomTaula]!!.getInt(index + 1)
+                    "kotlin.Float" -> result[nomTaula]!!.getFloat(index + 1)
+                    "kotlin.Boolean" -> result[nomTaula]!!.getBoolean(index + 1)
                     else -> "" // Puedes manejar otros tipos si es necesario
                 }
                 parametres.add(parametre ?: "")
@@ -141,7 +149,9 @@ class Postgres {
 
     // Fa la desconnexió del servidor PostgreSQL.
     fun desconnexioBD() {
-        result.close()
+        for (result in this.result) {
+            result.value.close()
+        }
         this.connection.close()
     }
 }
