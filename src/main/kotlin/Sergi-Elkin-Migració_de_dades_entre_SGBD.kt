@@ -1,5 +1,6 @@
 package org.example
 
+// Importaciones de las librerías necesarias
 import com.mongodb.MongoException
 import com.mongodb.MongoTimeoutException
 import com.mongodb.client.MongoClient
@@ -15,43 +16,44 @@ import java.sql.DriverManager
 import java.sql.ResultSet
 import kotlin.reflect.full.memberProperties
 
-
+// Definición de las clases de datos para representar entidades del sistema
 data class Alumnos(val dni: String, val apenom: String, val direc: String, val pobla: String, val telef: String)
 data class Assignaturas(val cod: Int, val nombre: String)
 data class Notas(val dni: String, val cod: Int, val nota: Int)
 
 fun main() {
+    // Definición de los hosts de PostgreSQL y MongoDB
     val postgresHost = "localhost:5432"
     val mongoHost = "sergioherrador.bwwhoy4.mongodb.net/?retryWrites=true&w=majority&appName=SergioHerrador"
 
     // Tenemos las tablas que queremos migrar
-    val tablas : MutableList<String> = mutableListOf("alumnos","notas","asignaturas")
+    val tablas: MutableList<String> = mutableListOf("alumnos", "notas", "asignaturas")
 
+    // Variables para las conexiones a PostgreSQL y MongoDB
     var postgres: Postgres? = null
     var mongo: Mongo? = null
     try {
-        // Instanciem els objectes de postgres i mongo
+        // Instanciamos los objetos de postgres y mongo
         postgres = Postgres()
         mongo = Mongo()
 
-        // Ens conectem a postgres i comencem a llegir
+        // Nos conectamos a PostgreSQL y comenzamos a leer
         postgres.connexioBD(postgresHost, "sjo", "", "school")
         for (tabla in tablas) {
             postgres.llegeix(tabla)
         }
 
-        // Ens conectem a mongo
+        // Nos conectamos a MongoDB
         mongo.connexioBD(mongoHost, "elkin", "pepoClown123", "itb")
 
-
-
-        while (true) {
-            for (tabla in tablas) {
-                postgres.llegeix(tabla)
+        // Iteramos sobre
+        for (tabla in tablas) {
+            postgres.llegeix(tabla) // Leemos la tabla y modificamos su resultSet
+            while (postgres.hiha(tabla) == true) { // Leemos si hay resultados en la tabla que buscamos, si es asi iteramos
                 when (tabla) {
                     "alumnos" -> {
-                        val alumn = postgres.recupera<Alumnos>(tabla) // Agafem un alumne
-                        if (alumn != null) { // Si l'alumne no es null imprimim les dades i el pujem a mongo
+                        val alumn = postgres.recupera<Alumnos>(tabla) // Obtenemos un alumno
+                        if (alumn != null) { // Si el alumno no es null imprimimos los datos y lo insertamos en MongoDB
                             println(alumn.dni)
                             println(alumn.apenom)
                             println(alumn.direc)
@@ -59,79 +61,75 @@ fun main() {
                             println(alumn.telef)
                             mongo.insereix(tabla, alumn)
                         } else {
-                            println("L'alumne es null, no s'ha trobat cap")
+                            println("El alumno es null, no se ha encontrado ninguno")
                         }
                     }
 
                     "notas" -> {
-                        val nota = postgres.recupera<Notas>(tabla) // Agafem un alumne
-                        if (nota != null) { // Si la nota no es null imprimim les dades i el pujem a mongo
+                        val nota = postgres.recupera<Notas>(tabla) // Obtenemos una nota
+                        if (nota != null) { // Si la nota no es null imprimimos los datos y la insertamos en MongoDB
                             println(nota.dni)
                             println(nota.nota)
                             println(nota.cod)
                             mongo.insereix(tabla, nota)
                         } else {
-                            println("La nota es null, no s'ha trobat cap")
+                            println("La nota es null, no se ha encontrado ninguna")
                         }
                     }
 
                     "asignatura" -> {
-                        val assignatura = postgres.recupera<Assignaturas>(tabla) // Agafem un alumne
-                        if (assignatura != null) { // Si la assignatura no es null imprimim les dades i el pujem a mongo
+                        val assignatura = postgres.recupera<Assignaturas>(tabla) // Obtenemos una asignatura
+                        if (assignatura != null) { // Si la asignatura no es null imprimimos los datos y la insertamos en MongoDB
                             println(assignatura.nombre)
                             println(assignatura.cod)
                             mongo.insereix(tabla, assignatura)
                         } else {
-                            println("La nota es null, no s'ha trobat cap")
+                            println("La asignatura es null, no se ha encontrado ninguna")
                         }
                     }
                 }
             }
-            var continuar = false
-            for (tabla in tablas) {
-                if (postgres.hiha(tabla) == true)  continuar = true
-            }
-            if (!continuar) break
         }
 
     } catch (e: PSQLException) {
         println(e.message)
     } finally {
-        // Finalment es desconectem de les bases de dades
+        // Finalmente nos desconectamos de las bases de datos
         postgres?.desconnexioBD()
         mongo?.desconnexioBD()
     }
 }
 
+// Clase para manejar las operaciones con PostgreSQL
 class Postgres {
     private lateinit var connection: Connection
-    var result = mutableMapOf<String,ResultSet>()
+    var result = mutableMapOf<String, ResultSet>()
 
-    // Estableix la connexió contra la BD del servidor  PostgreSQL.
+    // Establece la conexión contra la BD del servidor PostgreSQL
     fun connexioBD(host: String, user: String, password: String, bd: String) {
         val jdbcUrl = "jdbc:postgresql://$host/$bd"
         this.connection = DriverManager.getConnection(jdbcUrl, user, password)
         llegeix(bd)
     }
 
-    // inicia l’operació de lectura de la taula rebuda com a paràmetre.
+    // Inicia la lectura de la tabla recibida como parámetro
     fun llegeix(nomTaula: String) {
         val statement = connection.createStatement()
         this.result[nomTaula] = statement.executeQuery("SELECT * FROM $nomTaula")
     }
 
-    // Indica si hi ha dades disponibles per llegir de la taula rebuda com a paràmetre.
+    // Retorna un booleano si hay datos disponibles para leer de la tabla recibida como parámetro
     fun hiha(nomTaula: String): Boolean? {
         return this.result[nomTaula]?.next()
     }
 
-    // Retorna un objecte amb les dades llegides de la taula rebuda com a paràmetre.
+    // Retorna un objeto con los datos leídos de la tabla recibida como parámetro.
     inline fun <reified T : Any> recupera(nomTaula: String): T? {
-        if (result[nomTaula]?.next() == true) { // Si el resultat te seguent el agafem
+        if (result[nomTaula]?.next() == true) { // Si el resultado tiene siguiente lo obtenemos
             val parametres = mutableListOf<Any>()
             val properties = T::class.memberProperties
             for ((index, property) in properties.withIndex()) {
-                // Agafem els parametres i el index, per cada parametre verifiquem que tipus es i el agafem
+                // Obtenemos los parámetros y el índice, para cada parámetro verificamos su tipo y lo obtenemos
                 val parametre: Any? = when (property.returnType.toString()) {
                     "kotlin.String" -> result[nomTaula]!!.getString(index + 1)
                     "kotlin.Int" -> result[nomTaula]!!.getInt(index + 1)
@@ -141,13 +139,13 @@ class Postgres {
                 }
                 parametres.add(parametre ?: "")
             }
-            // Un cop tenims tots els parametres amb aquests creem una instancia del objecte amb el seu constructor primari
+            // Una vez tenemos todos los parámetros con estos creamos una instancia del objeto con su constructor primario
             return T::class.constructors.first().call(*parametres.toTypedArray())
         }
-        return null // Si en el resultat no hi ha seguent retornem null
+        return null // Si en el resultado no hay siguiente retornamos null
     }
 
-    // Fa la desconnexió del servidor PostgreSQL.
+    // Cierra la conexión del servidor PostgreSQL.
     fun desconnexioBD() {
         for (result in this.result) {
             result.value.close()
@@ -156,34 +154,26 @@ class Postgres {
     }
 }
 
+// Clase para manejar las operaciones con MongoDB
 class Mongo {
-    private var colleccio: String = ""
-    private var host: String = ""
-    private var usuari: String = ""
-    private var password: String = ""
-    private var bd: String = ""
-    private var mongoClient: MongoClient? = null
-    private var baseDades: MongoDatabase? = null
+    private var mongoClient: MongoClient? = null // Empieza como null y en la conexion cambia el valor
+    private var baseDades: MongoDatabase? = null // Empieza como null y en la conexion cambia el valor
 
-    // Estableix la connexió contra la BD del servidor MongoDB
+    // Establece la conexión contra la BD del servidor MongoDB
     fun connexioBD(host: String, usuari: String, password: String, bd: String) {
-        this.host = host
-        this.usuari = usuari
-        this.password = password
-        this.bd = bd
-
         try {
-            // Connectar-se a servidor de mongoDB
+            // Conectarse al servidor de MongoDB
             val mongoClientFun = mongoClient
 
             val mongoUrl = "mongodb+srv://$usuari:$password@$host"
-            // Crear connexió
+
+            // Crear conexión
             mongoClient = MongoClients.create(mongoUrl)
 
-            // Agafar la base de dades desitjada
+            // Obtener la base de datos deseada y cambiar el parametro de la clase
             baseDades = mongoClientFun?.getDatabase(bd)
         } catch (e: MongoTimeoutException) {
-            println("No arribem a la base de dades")
+            println("No se pudo conectar a la base de datos")
         } catch (e: MongoException) {
             println(e.message)
         } catch (e: Exception) {
@@ -191,26 +181,25 @@ class Mongo {
         }
     }
 
-    // Insereix el document corresponent a l’objecte rebut com a paràmetre a la col·lecció indicada
+    // Inserta el documento correspondiente al objeto recibido como parámetro en la colección indicada
     fun insereix(colleccio: String, objecte: Any) {
-        this.colleccio = colleccio // Agafem la collecio y la afegim com a variable de la nostra classe
-        if (baseDades == null) { // si es null significa que no s'ha fet servir la funció connexioBD
-            println("Primer has de fer la funcio connexioBD")
+        if (baseDades == null) { // si es null significa que no se ha usado la función connexioBD
+            println("Primero debes hacer la función connexioBD")
         } else {
-            val coll: MongoCollection<Document> = baseDades!!.getCollection(colleccio) // Agafem la connexió
-            val objecteJsonString = Json.encodeToString(objecte) // Encodifiquem el tipus genèric
-            coll.insertOne(Document.parse(objecteJsonString)) // i una vegada amb el json string l'insertem
+            val coll: MongoCollection<Document> = baseDades!!.getCollection(colleccio) // Obtenemos la conexión
+            val objecteJsonString = Json.encodeToString(objecte) // Codificamos el tipo genérico en un JSON STRING
+            coll.insertOne(Document.parse(objecteJsonString)) // y una vez con el json string lo insertamos como documento usando parse
         }
 
     }
 
-    // Fa la desconnexió del servidor MongoDB
+    // Cierra la conexión del servidor MongoDB
     fun desconnexioBD() {
         if (mongoClient != null) {
             mongoClient!!.close()
-            println("Desconexxió completada")
+            println("Desconexión completada")
         } else {
-            println("Estas desconectat")
+            println("Estás desconectado")
         }
     }
 }
